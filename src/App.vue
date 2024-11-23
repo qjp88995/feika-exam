@@ -10,9 +10,26 @@ const geoInfo: GeoInfo = {
   y: (containerSize - wrapperSize) / 2,
   width: wrapperSize,
   height: wrapperSize,
+  imageX: 0,
+  imageY: 0,
+  imageWidth: wrapperSize,
+  imageHeight: wrapperSize,
 }
 
-const { x, y, width, height, isActive, activate, activateMove } = useEditor(geoInfo)
+const {
+  x,
+  y,
+  width,
+  height,
+  imageX,
+  imageY,
+  imageWidth,
+  imageHeight,
+  isActive,
+  activate,
+  activateMove,
+  activateResize,
+} = useEditor(geoInfo)
 
 const wrapperStyle = computed<StyleValue>(() => {
   return {
@@ -20,6 +37,15 @@ const wrapperStyle = computed<StyleValue>(() => {
     height: `${height.value}px`,
     left: `${x.value}px`,
     top: `${y.value}px`,
+  }
+})
+
+const imageStyle = computed<StyleValue>(() => {
+  return {
+    width: `${imageWidth.value}px`,
+    height: `${imageHeight.value}px`,
+    left: `${imageX.value}px`,
+    top: `${imageY.value}px`,
   }
 })
 
@@ -56,10 +82,12 @@ const borderStyles = computed<Record<string, StyleValue>>(() => {
 const sliderSize = 12
 const overSize = 2
 const shortSliderSize = borderSize + overSize * 2
+const cornerSliderSize = borderSize + overSize * 2
 const sliderStyles = computed<Record<string, StyleValue>>(() => {
   const shortMargin = shortSliderSize - overSize
   const horizontalMargin = (width.value - sliderSize) / 2
   const verticalMargin = (height.value - sliderSize) / 2
+  const cornerMargin = cornerSliderSize - overSize
   return {
     top: {
       width: `${sliderSize}px`,
@@ -85,6 +113,30 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
       top: `${verticalMargin}px`,
       right: `-${shortMargin}px`,
     },
+    topLeft: {
+      width: `${cornerSliderSize}px`,
+      height: `${cornerSliderSize}px`,
+      top: `-${cornerMargin}px`,
+      left: `-${cornerMargin}px`,
+    },
+    topRight: {
+      width: `${cornerSliderSize}px`,
+      height: `${cornerSliderSize}px`,
+      top: `-${cornerMargin}px`,
+      right: `-${cornerMargin}px`,
+    },
+    bottomLeft: {
+      width: `${cornerSliderSize}px`,
+      height: `${cornerSliderSize}px`,
+      bottom: `-${cornerMargin}px`,
+      left: `-${cornerMargin}px`,
+    },
+    bottomRight: {
+      width: `${cornerSliderSize}px`,
+      height: `${cornerSliderSize}px`,
+      bottom: `-${cornerMargin}px`,
+      right: `-${cornerMargin}px`,
+    },
   }
 })
 </script>
@@ -92,7 +144,9 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
 <template>
   <div class="container" :style="{ width: `${containerSize}px`, height: `${containerSize}px` }">
     <div class="wrapper" :style="wrapperStyle" @click.stop="activate">
-      <img src="@/assets/logo.svg" alt="" />
+      <div class="img-wrapper">
+        <img src="@/assets/logo.svg" alt="" :style="imageStyle" />
+      </div>
       <div class="mask" @mousedown.stop="activateMove($event.clientX, $event.clientY)"></div>
       <!-- 四条边框 -->
       <div v-if="isActive" class="border border-top" :style="borderStyles.top"></div>
@@ -100,15 +154,55 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
       <div v-if="isActive" class="border border-left" :style="borderStyles.left"></div>
       <div v-if="isActive" class="border border-right" :style="borderStyles.right"></div>
       <!-- 四个中线滑块 -->
-      <div v-if="isActive" class="slider slider-top" :style="sliderStyles.top"></div>
-      <div v-if="isActive" class="slider slider-bottom" :style="sliderStyles.bottom"></div>
-      <div v-if="isActive" class="slider slider-left" :style="sliderStyles.left"></div>
-      <div v-if="isActive" class="slider slider-right" :style="sliderStyles.right"></div>
+      <div
+        v-if="isActive"
+        class="slider slider-top"
+        :style="sliderStyles.top"
+        @mousedown="activateResize('top', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-bottom"
+        :style="sliderStyles.bottom"
+        @mousedown="activateResize('bottom', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-left"
+        :style="sliderStyles.left"
+        @mousedown="activateResize('left', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-right"
+        :style="sliderStyles.right"
+        @mousedown="activateResize('right', $event.clientX, $event.clientY)"
+      ></div>
       <!-- 四个角滑块 -->
-      <div v-if="isActive" class="slider slider-top-left"></div>
-      <div v-if="isActive" class="slider slider-top-right"></div>
-      <div v-if="isActive" class="slider slider-bottom-left"></div>
-      <div v-if="isActive" class="slider slider-bottom-right"></div>
+      <div
+        v-if="isActive"
+        class="slider slider-top-left"
+        :style="sliderStyles.topLeft"
+        @mousedown="activateResize('topLeft', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-top-right"
+        :style="sliderStyles.topRight"
+        @mousedown="activateResize('topRight', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-bottom-left"
+        :style="sliderStyles.bottomLeft"
+        @mousedown="activateResize('bottomLeft', $event.clientX, $event.clientY)"
+      ></div>
+      <div
+        v-if="isActive"
+        class="slider slider-bottom-right"
+        :style="sliderStyles.bottomRight"
+        @mousedown="activateResize('bottomRight', $event.clientX, $event.clientY)"
+      ></div>
     </div>
   </div>
 </template>
@@ -122,9 +216,14 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
 .wrapper {
   position: absolute;
 }
-.wrapper img {
+.img-wrapper {
+  position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+}
+.img-wrapper img {
+  position: absolute;
   user-select: none;
 }
 .mask {
@@ -142,10 +241,29 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
 .slider {
   position: absolute;
   background-color: #ccc;
+}
+.slider-top {
+  cursor: n-resize;
+}
+.slider-bottom {
+  cursor: s-resize;
+}
+.slider-left {
+  cursor: w-resize;
+}
+.slider-right {
   cursor: e-resize;
 }
-.slider-top,
-.slider-bottom {
-  cursor: n-resize;
+.slider-top-left {
+  cursor: nw-resize;
+}
+.slider-top-right {
+  cursor: ne-resize;
+}
+.slider-bottom-left {
+  cursor: sw-resize;
+}
+.slider-bottom-right {
+  cursor: se-resize;
 }
 </style>

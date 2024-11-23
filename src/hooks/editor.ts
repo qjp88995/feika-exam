@@ -17,18 +17,30 @@ export type GeoInfo = {
   y: number
   width: number
   height: number
+  imageX: number
+  imageY: number
+  imageWidth: number
+  imageHeight: number
 }
 
 export type ResizeFun = (geo: GeoInfo, moveX: number, moveY: number) => GeoInfo
 
 export function useEditor(geo: GeoInfo) {
-  // 图片坐标
+  // 容器坐标
   const x = ref(geo.x)
   const y = ref(geo.y)
 
-  // 图片尺寸
+  // 容器尺寸
   const width = ref(geo.width)
   const height = ref(geo.height)
+
+  // 图片坐标
+  const imageX = ref(geo.imageX)
+  const imageY = ref(geo.imageY)
+
+  // 图片尺寸
+  const imageWidth = ref(geo.imageWidth)
+  const imageHeight = ref(geo.imageHeight)
 
   // 编辑器是否激活
   const isActive = ref(false)
@@ -60,7 +72,7 @@ export function useEditor(geo: GeoInfo) {
 
   // 激活移动操作
   const activateMove = (startX: number, startY: number) => {
-    if (!isActive.value) return
+    if (!isActive.value || action.value !== 'none') return
 
     console.groupCollapsed('移动操作')
     console.log('起始位置', startX, startY)
@@ -94,30 +106,48 @@ export function useEditor(geo: GeoInfo) {
   // 调整大小时各个方向的函数
   const resizeFuns: Record<ResizeType, ResizeFun> = {
     topLeft: (geo, moveX, moveY) => {
-      const dis = Math.max(moveX, moveY)
+      const fixedPoint = { x: geo.x + geo.width, y: geo.y + geo.height }
+      const width = geo.width - moveX
+      const height = geo.height - moveY
       return {
-        x: geo.x + dis,
-        y: geo.y + dis,
-        width: geo.width - dis,
-        height: geo.height - dis,
+        x: fixedPoint.x - width,
+        y: fixedPoint.y - height,
+        width,
+        height,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     topRight: (geo, moveX, moveY) => {
-      const dis = Math.max(moveX, moveY)
+      const fixedPoint = { x: geo.x, y: geo.y + geo.height }
+      const width = geo.width + moveX
+      const height = geo.height - moveY
       return {
-        x: geo.x,
-        y: geo.y + dis,
-        width: geo.width + dis,
-        height: geo.height - dis,
+        x: fixedPoint.x,
+        y: fixedPoint.y - height,
+        width,
+        height,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     bottomLeft: (geo, moveX, moveY) => {
-      const dis = Math.max(moveX, moveY)
+      const fixedPoint = { x: geo.x + geo.width, y: geo.y }
+      const width = geo.width - moveX
+      const height = geo.height + moveY
       return {
-        x: geo.x + dis,
-        y: geo.y,
-        width: geo.width - dis,
-        height: geo.height + dis,
+        x: fixedPoint.x - width,
+        y: fixedPoint.y,
+        width,
+        height,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     bottomRight: (geo, moveX, moveY) => {
@@ -126,6 +156,10 @@ export function useEditor(geo: GeoInfo) {
         y: geo.y,
         width: geo.width + moveX,
         height: geo.height + moveY,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     top: (geo, _moveX, moveY) => {
@@ -134,6 +168,10 @@ export function useEditor(geo: GeoInfo) {
         y: geo.y + moveY,
         width: geo.width,
         height: geo.height - moveY,
+        imageX: geo.imageX,
+        imageY: geo.imageY - moveY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     left: (geo, moveX) => {
@@ -142,6 +180,10 @@ export function useEditor(geo: GeoInfo) {
         y: geo.y,
         width: geo.width - moveX,
         height: geo.height,
+        imageX: geo.imageX - moveX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     right: (geo, moveX) => {
@@ -150,6 +192,10 @@ export function useEditor(geo: GeoInfo) {
         y: geo.y,
         width: geo.width + moveX,
         height: geo.height,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
     bottom: (geo, _moveX, moveY) => {
@@ -158,31 +204,57 @@ export function useEditor(geo: GeoInfo) {
         y: geo.y,
         width: geo.width,
         height: geo.height + moveY,
+        imageX: geo.imageX,
+        imageY: geo.imageY,
+        imageWidth: geo.imageWidth,
+        imageHeight: geo.imageHeight,
       }
     },
   }
 
   // 激活调整大小操作
   const activateResize = (type: ResizeType, startX: number, startY: number) => {
+    if (!isActive.value || action.value !== 'none') return
+
     action.value = 'resize'
 
-    const geo = { x: x.value, y: y.value, width: width.value, height: height.value }
+    const geo = {
+      x: x.value,
+      y: y.value,
+      width: width.value,
+      height: height.value,
+      imageX: imageX.value,
+      imageY: imageY.value,
+      imageWidth: imageWidth.value,
+      imageHeight: imageHeight.value,
+    }
+
+    console.groupCollapsed('调整大小操作 -', type)
+    console.log('起始位置', startX, startY)
 
     const handleResize = (e: MouseEvent) => {
       const moveX = e.clientX - startX
       const moveY = e.clientY - startY
+
+      console.log('移动距离', moveX, moveY)
 
       const newGeo = resizeFuns[type](geo, moveX, moveY)
       x.value = newGeo.x
       y.value = newGeo.y
       width.value = newGeo.width
       height.value = newGeo.height
+      imageX.value = newGeo.imageX
+      imageY.value = newGeo.imageY
+      imageWidth.value = newGeo.imageWidth
+      imageHeight.value = newGeo.imageHeight
     }
 
     window.addEventListener('mousemove', handleResize)
     window.addEventListener(
       'mouseup',
       () => {
+        console.log('结束')
+        console.groupEnd()
         action.value = 'none'
         window.removeEventListener('mousemove', handleResize)
       },
@@ -192,6 +264,8 @@ export function useEditor(geo: GeoInfo) {
 
   // 激活旋转操作
   const activateRotate = (startX: number, startY: number) => {
+    if (!isActive.value || action.value !== 'none') return
+
     action.value = 'rotate'
     const currentRotate = rotationAngle.value
 
@@ -218,6 +292,10 @@ export function useEditor(geo: GeoInfo) {
     y,
     width,
     height,
+    imageX,
+    imageY,
+    imageWidth,
+    imageHeight,
     isActive,
     action,
     rotationAngle,
