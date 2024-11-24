@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type StyleValue } from 'vue'
+import { computed, useTemplateRef, type StyleValue } from 'vue'
 import { useEditor, type GeoInfo } from '@/hooks/editor'
 
 const containerSize = 600
@@ -25,11 +25,19 @@ const {
   imageY,
   imageWidth,
   imageHeight,
+  action,
   isActive,
+  rotationRadian,
   activate,
   activateMove,
   activateResize,
+  activateRotate,
 } = useEditor(geoInfo)
+
+const rotationAngle = computed(() => {
+  const angle = rotationRadian.value * (180 / Math.PI)
+  return angle > 0 ? angle : angle + 360
+})
 
 const wrapperStyle = computed<StyleValue>(() => {
   return {
@@ -37,6 +45,7 @@ const wrapperStyle = computed<StyleValue>(() => {
     height: `${height.value}px`,
     left: `${x.value}px`,
     top: `${y.value}px`,
+    transform: `rotate(${rotationAngle.value}deg)`,
   }
 })
 
@@ -139,11 +148,33 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
     },
   }
 })
+
+const rotateBtnSize = 24
+const rotateBtnStyle = computed<StyleValue>(() => {
+  const w = rotateBtnSize * 2
+  return {
+    width: `${w}px`,
+    height: `${rotateBtnSize}px`,
+    left: `${(width.value - w) / 2}px`,
+    bottom: `-${rotateBtnSize + 20}px`,
+    borderRadius: `${rotateBtnSize / 2}px`,
+    transform: `rotate(${-rotationAngle.value}deg)`,
+  }
+})
+
+const wrapper = useTemplateRef('wrapperRef')
+
+const getCenterPoint = () => {
+  const rect = wrapper.value!.getBoundingClientRect()
+  const x = rect.x + rect.width / 2
+  const y = rect.y + rect.height / 2
+  return { x, y }
+}
 </script>
 
 <template>
   <div class="container" :style="{ width: `${containerSize}px`, height: `${containerSize}px` }">
-    <div class="wrapper" :style="wrapperStyle" @click.stop="activate">
+    <div ref="wrapperRef" class="wrapper" :style="wrapperStyle" @click.stop="activate">
       <div class="img-wrapper">
         <img src="@/assets/logo.svg" alt="" :style="imageStyle" />
       </div>
@@ -203,6 +234,15 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
         :style="sliderStyles.bottomRight"
         @mousedown="activateResize('bottomRight', $event.clientX, $event.clientY)"
       ></div>
+      <!-- 旋转按钮 -->
+      <button
+        v-if="isActive"
+        class="rotate-btn"
+        :style="rotateBtnStyle"
+        @mousedown="activateRotate($event.clientX, $event.clientY, getCenterPoint)"
+      >
+        {{ action === 'rotate' ? `${Math.round(rotationAngle)}°` : '转' }}
+      </button>
     </div>
   </div>
 </template>
@@ -215,6 +255,7 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
 }
 .wrapper {
   position: absolute;
+  transform-origin: center center;
 }
 .img-wrapper {
   position: relative;
@@ -265,5 +306,12 @@ const sliderStyles = computed<Record<string, StyleValue>>(() => {
 }
 .slider-bottom-right {
   cursor: se-resize;
+}
+.rotate-btn {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: none;
+  cursor: pointer;
 }
 </style>

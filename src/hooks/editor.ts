@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 
 export type ActionType = 'move' | 'resize' | 'rotate' | 'none'
 
@@ -44,8 +44,17 @@ export function useEditor(geo: GeoInfo) {
   // 当前操作
   const action = ref<ActionType>('none')
 
+  // 最后一次操作结束时间
+  const lastActionTime = ref(Date.now())
+
   // 旋转角度
-  const rotationAngle = ref(0)
+  const rotationRadian = ref(0)
+
+  watchEffect(() => {
+    if (action.value === 'none') {
+      lastActionTime.value = Date.now()
+    }
+  })
 
   // 激活编辑器
   const activate = () => {
@@ -55,7 +64,7 @@ export function useEditor(geo: GeoInfo) {
     console.log('编辑器', 'activate')
 
     const inactivate = () => {
-      if (action.value !== 'none') return
+      if (action.value !== 'none' || Date.now() - lastActionTime.value < 300) return
 
       isActive.value = false
       console.log('编辑器', 'inactivate')
@@ -289,17 +298,30 @@ export function useEditor(geo: GeoInfo) {
   }
 
   // 激活旋转操作
-  const activateRotate = (startX: number, startY: number) => {
+  const activateRotate = (
+    startX: number,
+    startY: number,
+    getCenterPoint: () => { x: number; y: number },
+  ) => {
     if (!isActive.value || action.value !== 'none') return
 
     action.value = 'rotate'
-    const currentRotate = rotationAngle.value
+
+    const centerPoint = getCenterPoint()
+    const currentRotate = rotationRadian.value
+
+    const startCoord = { y: startY - centerPoint.y, x: startX - centerPoint.x }
+    const startRadian = Math.atan2(startCoord.y, startCoord.x)
 
     const handleRotate = (e: MouseEvent) => {
-      const moveX = e.clientX - startX
-      const moveY = e.clientY - startY
-      const angle = (Math.atan2(moveY, moveX) * 180) / Math.PI
-      rotationAngle.value = currentRotate + angle
+      const clientX = e.clientX
+      const clientY = e.clientY
+
+      const endCoord = { y: clientY - centerPoint.y, x: clientX - centerPoint.x }
+      const endRadian = Math.atan2(endCoord.y, endCoord.x)
+
+      const radian = endRadian - startRadian
+      rotationRadian.value = currentRotate + radian
     }
 
     window.addEventListener('mousemove', handleRotate)
@@ -324,7 +346,7 @@ export function useEditor(geo: GeoInfo) {
     imageHeight,
     isActive,
     action,
-    rotationAngle,
+    rotationRadian,
     activate,
     activateMove,
     activateResize,
