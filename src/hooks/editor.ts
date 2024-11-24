@@ -2,15 +2,11 @@ import { ref } from 'vue'
 
 export type ActionType = 'move' | 'resize' | 'rotate' | 'none'
 
-export type ResizeType =
-  | 'topLeft'
-  | 'topRight'
-  | 'bottomLeft'
-  | 'bottomRight'
-  | 'top'
-  | 'right'
-  | 'bottom'
-  | 'left'
+export type ResizePosType = 'top' | 'right' | 'bottom' | 'left'
+
+export type ResizeOblType = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'
+
+export type ResizeType = ResizePosType | ResizeOblType
 
 export type GeoInfo = {
   x: number
@@ -107,59 +103,86 @@ export function useEditor(geo: GeoInfo) {
   const resizeFuns: Record<ResizeType, ResizeFun> = {
     topLeft: (geo, moveX, moveY) => {
       const fixedPoint = { x: geo.x + geo.width, y: geo.y + geo.height }
-      const width = geo.width - moveX
-      const height = geo.height - moveY
+      const movePoint = { x: geo.x + moveX, y: geo.y + moveY }
+      const dW = Math.abs(movePoint.x - fixedPoint.x)
+      const dH = Math.abs(movePoint.y - fixedPoint.y)
+      const ratio = geo.width / geo.height
+      const isX = dW / ratio > dH
+      const width = isX ? dW : dH * ratio
+      const height = isX ? dW / ratio : dH
+      const scale = width / geo.width
       return {
         x: fixedPoint.x - width,
         y: fixedPoint.y - height,
         width,
         height,
-        imageX: geo.imageX,
-        imageY: geo.imageY,
-        imageWidth: geo.imageWidth,
-        imageHeight: geo.imageHeight,
+        imageX: geo.imageX * scale,
+        imageY: geo.imageY * scale,
+        imageWidth: geo.imageWidth * scale,
+        imageHeight: geo.imageHeight * scale,
       }
     },
     topRight: (geo, moveX, moveY) => {
       const fixedPoint = { x: geo.x, y: geo.y + geo.height }
-      const width = geo.width + moveX
-      const height = geo.height - moveY
+      const movePoint = { x: geo.x + geo.width + moveX, y: geo.y + moveY }
+      const dW = Math.abs(movePoint.x - fixedPoint.x)
+      const dH = Math.abs(movePoint.y - fixedPoint.y)
+      const ratio = geo.width / geo.height
+      const isX = dW / ratio > dH
+      const width = isX ? dW : dH * ratio
+      const height = isX ? dW / ratio : dH
+      const scale = width / geo.width
       return {
         x: fixedPoint.x,
         y: fixedPoint.y - height,
         width,
         height,
-        imageX: geo.imageX,
-        imageY: geo.imageY,
-        imageWidth: geo.imageWidth,
-        imageHeight: geo.imageHeight,
+        imageX: geo.imageX * scale,
+        imageY: geo.imageY * scale,
+        imageWidth: geo.imageWidth * scale,
+        imageHeight: geo.imageHeight * scale,
       }
     },
     bottomLeft: (geo, moveX, moveY) => {
       const fixedPoint = { x: geo.x + geo.width, y: geo.y }
-      const width = geo.width - moveX
-      const height = geo.height + moveY
+      const movePoint = { x: geo.x + moveX, y: geo.y + geo.height + moveY }
+      const dW = Math.abs(movePoint.x - fixedPoint.x)
+      const dH = Math.abs(movePoint.y - fixedPoint.y)
+      const ratio = geo.width / geo.height
+      const isX = dW / ratio > dH
+      const width = isX ? dW : dH * ratio
+      const height = isX ? dW / ratio : dH
+      const scale = width / geo.width
       return {
         x: fixedPoint.x - width,
         y: fixedPoint.y,
         width,
         height,
-        imageX: geo.imageX,
-        imageY: geo.imageY,
-        imageWidth: geo.imageWidth,
-        imageHeight: geo.imageHeight,
+        imageX: geo.imageX * scale,
+        imageY: geo.imageY * scale,
+        imageWidth: geo.imageWidth * scale,
+        imageHeight: geo.imageHeight * scale,
       }
     },
     bottomRight: (geo, moveX, moveY) => {
+      const fixedPoint = { x: geo.x, y: geo.y }
+      const movePoint = { x: geo.x + geo.width + moveX, y: geo.y + geo.height + moveY }
+      const dW = Math.abs(movePoint.x - fixedPoint.x)
+      const dH = Math.abs(movePoint.y - fixedPoint.y)
+      const ratio = geo.width / geo.height
+      const isX = dW / ratio > dH
+      const width = isX ? dW : dH * ratio
+      const height = isX ? dW / ratio : dH
+      const scale = width / geo.width
       return {
         x: geo.x,
         y: geo.y,
-        width: geo.width + moveX,
-        height: geo.height + moveY,
-        imageX: geo.imageX,
-        imageY: geo.imageY,
-        imageWidth: geo.imageWidth,
-        imageHeight: geo.imageHeight,
+        width,
+        height,
+        imageX: geo.imageX * scale,
+        imageY: geo.imageY * scale,
+        imageWidth: geo.imageWidth * scale,
+        imageHeight: geo.imageHeight * scale,
       }
     },
     top: (geo, _moveX, moveY) => {
@@ -233,10 +256,13 @@ export function useEditor(geo: GeoInfo) {
     console.log('起始位置', startX, startY)
 
     const handleResize = (e: MouseEvent) => {
-      const moveX = e.clientX - startX
-      const moveY = e.clientY - startY
+      const clientX = e.clientX
+      const clientY = e.clientY
+      const moveX = clientX - startX
+      const moveY = clientY - startY
 
       console.log('移动距离', moveX, moveY)
+      console.log('本次移动距离', moveX, moveY)
 
       const newGeo = resizeFuns[type](geo, moveX, moveY)
       x.value = newGeo.x
