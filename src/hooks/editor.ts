@@ -21,7 +21,11 @@ export type GeoInfo = {
 
 export type ResizeFun = (geo: GeoInfo, moveX: number, moveY: number) => GeoInfo
 
-export function useEditor(geo: GeoInfo) {
+export type Point = { x: number; y: number }
+
+export type Aux = { x: number; y: number; distance: number }
+
+export function useEditor(geo: GeoInfo, aux: Aux) {
   // 容器坐标
   const x = ref(geo.x)
   const y = ref(geo.y)
@@ -56,6 +60,74 @@ export function useEditor(geo: GeoInfo) {
     }
   })
 
+  // 获取旋转后的坐标，左上、右上、右下、左下、中心点
+  const getTransformPoints = (
+    geo: { x: number; y: number; width: number; height: number },
+    radian: number,
+  ) => {
+    const { x, y, width, height } = geo
+
+    const center = { x: x + width / 2, y: y + height / 2 }
+
+    const transform = (point: { x: number; y: number }) => {
+      const x1 = center.x + (point.x - center.x) * cos - (point.y - center.y) * sin
+      const y1 = center.y + (point.x - center.x) * sin + (point.y - center.y) * cos
+      return { x: x1, y: y1 }
+    }
+
+    // 根据旋转角度计算旋转后的坐标
+    const cos = Math.cos(radian)
+    const sin = Math.sin(radian)
+
+    return [
+      transform({ x, y }),
+      transform({ x: x + width, y }),
+      transform({ x: x + width, y: y + height }),
+      transform({ x, y: y + height }),
+      center,
+    ]
+  }
+
+  // 判断点是否在辅助线吸附范围内
+  const inAuxRange = (point: Point, aux: Aux, axis: 'x' | 'y') => {
+    return Math.abs(point[axis] - aux[axis]) <= aux.distance
+  }
+
+  // 判断点的上一个坐标和当前坐标是否逐渐靠近辅助线
+  const isApproachingAux = (lastPoint: Point, currentPoint: Point, aux: Aux, axis: 'x' | 'y') => {
+    return (
+      (lastPoint[axis] >= currentPoint[axis] && currentPoint[axis] >= aux[axis]) ||
+      (lastPoint[axis] <= currentPoint[axis] && currentPoint[axis] <= aux[axis])
+    )
+  }
+
+  // 获取辅助线吸附数值
+  const getAuxRange = (lastPoints: Point[], currentPoints: Point[], aux: Aux) => {
+    let moveX = 0,
+      moveY = 0
+    lastPoints.forEach((lastPoint, index) => {
+      const currentPoint = currentPoints[index]
+      // 判断是否靠近 aux x轴
+      if (
+        isApproachingAux(lastPoint, currentPoint, aux, 'x') &&
+        inAuxRange(currentPoint, aux, 'x')
+      ) {
+        const mx = aux.x - currentPoint.x
+        if (Math.abs(mx) < Math.abs(moveX) || moveX === 0) moveX = mx
+      }
+      // 判断是否靠近 aux y轴
+      if (
+        isApproachingAux(lastPoint, currentPoint, aux, 'y') &&
+        inAuxRange(currentPoint, aux, 'y')
+      ) {
+        const my = aux.y - currentPoint.y
+        if (Math.abs(my) < Math.abs(moveY) || moveY === 0) moveY = my
+      }
+    })
+
+    return { x: moveX, y: moveY }
+  }
+
   // 激活编辑器
   const activate = () => {
     if (isActive.value) return
@@ -86,6 +158,11 @@ export function useEditor(geo: GeoInfo) {
 
     const geo = { x: x.value, y: y.value, width: width.value, height: height.value }
 
+    let lastPoints = getTransformPoints(geo, rotationRadian.value)
+    let currGeo = geo
+
+    let auxMove: { x: number; y: number } = { x: 0, y: 0 }
+
     const handleMove = (e: MouseEvent) => {
       const moveX = e.clientX - startX
       const moveY = e.clientY - startY
@@ -94,6 +171,14 @@ export function useEditor(geo: GeoInfo) {
 
       x.value = geo.x + moveX
       y.value = geo.y + moveY
+
+      // 辅助线吸附判断
+      currGeo = { x: x.value, y: y.value, width: width.value, height: height.value }
+      const currentPoints = getTransformPoints(currGeo, rotationRadian.value)
+
+      auxMove = getAuxRange(lastPoints, currentPoints, aux)
+
+      lastPoints = currentPoints
     }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener(
@@ -103,6 +188,10 @@ export function useEditor(geo: GeoInfo) {
         console.groupEnd()
         action.value = 'none'
         window.removeEventListener('mousemove', handleMove)
+
+        // 结束后进行辅助线吸附
+        x.value += auxMove.x
+        y.value += auxMove.y
       },
       { once: true },
     )
@@ -261,6 +350,11 @@ export function useEditor(geo: GeoInfo) {
       imageHeight: imageHeight.value,
     }
 
+    let lastPoints = getTransformPoints(geo, rotationRadian.value)
+    let currGeo = geo
+
+    let auxMove: { x: number; y: number } = { x: 0, y: 0 }
+
     console.groupCollapsed('调整大小操作 -', type)
     console.log('起始位置', startX, startY)
 
@@ -282,6 +376,23 @@ export function useEditor(geo: GeoInfo) {
       imageY.value = newGeo.imageY
       imageWidth.value = newGeo.imageWidth
       imageHeight.value = newGeo.imageHeight
+
+      // 辅助线吸附判断
+      currGeo = {
+        x: x.value,
+        y: y.value,
+        width: width.value,
+        height: height.value,
+        imageX: imageX.value,
+        imageY: imageY.value,
+        imageWidth: imageWidth.value,
+        imageHeight: imageHeight.value,
+      }
+      const currentPoints = getTransformPoints(currGeo, rotationRadian.value)
+
+      auxMove = getAuxRange(lastPoints, currentPoints, aux)
+
+      lastPoints = currentPoints
     }
 
     window.addEventListener('mousemove', handleResize)
@@ -292,6 +403,17 @@ export function useEditor(geo: GeoInfo) {
         console.groupEnd()
         action.value = 'none'
         window.removeEventListener('mousemove', handleResize)
+
+        // 结束后进行辅助线吸附
+        const newGeo = resizeFuns[type](currGeo, auxMove.x, auxMove.y)
+        x.value = newGeo.x
+        y.value = newGeo.y
+        width.value = newGeo.width
+        height.value = newGeo.height
+        imageX.value = newGeo.imageX
+        imageY.value = newGeo.imageY
+        imageWidth.value = newGeo.imageWidth
+        imageHeight.value = newGeo.imageHeight
       },
       { once: true },
     )

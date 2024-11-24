@@ -16,6 +16,8 @@ const geoInfo: GeoInfo = {
   imageHeight: wrapperSize,
 }
 
+const aux = { x: containerSize / 2, y: containerSize / 2, distance: 30 }
+
 const {
   x,
   y,
@@ -32,7 +34,7 @@ const {
   activateMove,
   activateResize,
   activateRotate,
-} = useEditor(geoInfo)
+} = useEditor(geoInfo, aux)
 
 const rotationAngle = computed(() => {
   const angle = rotationRadian.value * (180 / Math.PI)
@@ -244,6 +246,14 @@ const getCenterPoint = () => {
         {{ action === 'rotate' ? `${Math.round(rotationAngle)}°` : '转' }}
       </button>
     </div>
+    <div
+      class="aux-line aux-line-x"
+      :style="{ width: '100%', height: '1px', top: `${aux.x}px`, left: 0 }"
+    ></div>
+    <div
+      class="aux-line aux-line-y"
+      :style="{ width: '1px', height: '100%', top: 0, left: `${aux.y}px` }"
+    ></div>
   </div>
 </template>
 
@@ -313,5 +323,10 @@ const getCenterPoint = () => {
   padding: 0;
   border: none;
   cursor: pointer;
+}
+.aux-line {
+  position: absolute;
+  background-color: rgba(14, 0, 209, 0.3);
+  pointer-events: none;
 }
 </style>
