@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, useTemplateRef, type StyleValue } from 'vue'
-import { useEditor, type GeoInfo } from '@/hooks/editor'
+import { useEditor, type Aux, type GeoWithImg } from '@/hooks/editor'
 
 const containerSize = 600
 const wrapperSize = 200
 
-const geoInfo: GeoInfo = {
+const geoInfo: GeoWithImg = {
   x: (containerSize - wrapperSize) / 2,
   y: (containerSize - wrapperSize) / 2,
   width: wrapperSize,
@@ -16,7 +16,7 @@ const geoInfo: GeoInfo = {
   imageHeight: wrapperSize,
 }
 
-const aux = { x: containerSize / 2, y: containerSize / 2, distance: 30 }
+const aux: Aux = { x: containerSize / 2, y: containerSize / 2, distance: 30 }
 
 const {
   x,
@@ -276,6 +276,7 @@ const getCenterPoint = () => {
 .img-wrapper img {
   position: absolute;
   user-select: none;
+  -webkit-user-drag: none;
 }
 .mask {
   position: absolute;
